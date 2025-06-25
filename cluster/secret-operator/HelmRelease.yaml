@@ -13,7 +13,7 @@ spec:
       version: '0.18.0'
       sourceRef:
         kind: HelmRepository
-        name: external-secrets-operator
+        name: external-secret-operator
       interval: 5m
   releaseName: external-secrets-operator
   install:
