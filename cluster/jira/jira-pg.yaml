@@ -9,6 +9,7 @@ spec:
     initdb:
       database: jira
       owner: jira
-      secret: db-creds
+      secret: 
+        name: db-creds
   storage:
     size: 1Gi
