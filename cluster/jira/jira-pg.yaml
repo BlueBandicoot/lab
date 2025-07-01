@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  namespace: jira
+  name: postgres
+spec:
+  instances: 3
+  bootstrap:
+    initdb:
+      database: jira
+      owner: jira
+      secret: db-creds
+  storage:
+    size: 1Gi
