@@ -1,0 +1,9 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: atlassian-data-center 
+  namespace: jira
+spec:
+  interval: 1m0s
+  url: https://atlassian.github.io/data-center-helm-charts 
