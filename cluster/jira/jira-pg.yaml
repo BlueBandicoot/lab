@@ -12,5 +12,5 @@ spec:
       secret: 
         name: db-creds
   storage:
-    size: 1Gi
+    size: 2Gi
 
