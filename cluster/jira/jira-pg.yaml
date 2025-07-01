@@ -12,5 +12,6 @@ spec:
       secret: 
         name: db-creds
   storage:
+    storageClass: local-path 
     size: 2Gi
 
