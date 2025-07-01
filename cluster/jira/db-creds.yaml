@@ -3,6 +3,7 @@ kind: Secret
 metadata:
   creationTimestamp: null
   name: db-creds
+  namespace: jira
 data:
   username: postgres
   password: postgres
