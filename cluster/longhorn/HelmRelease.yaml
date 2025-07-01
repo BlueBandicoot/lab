@@ -16,4 +16,4 @@ spec:
   interval: 1m0s
   values:
     persistence:
-      defaultReplicatCount: 1
+      defaultClassReplicaCount: 1
