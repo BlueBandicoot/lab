@@ -15,5 +15,5 @@ spec:
       version: v1.9.0
   interval: 1m0s
   values:
-    defaultSettings:
+    persistence:
       defaultReplicatCount: 1
