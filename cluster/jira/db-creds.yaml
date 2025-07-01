@@ -5,5 +5,5 @@ metadata:
   name: db-creds
   namespace: jira
 data:
-  username: postgres
+  username: jira 
   password: postgres
