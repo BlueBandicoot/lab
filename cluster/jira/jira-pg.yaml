@@ -11,5 +11,3 @@ spec:
       owner: jira
       secret: 
         name: db-creds
-  storage:
-    size: 1Gi
