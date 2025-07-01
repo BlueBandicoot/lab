@@ -32,129 +32,526 @@ spec:
         kind: Deployment
   values:
     replicaCount: 1
-    ordinals:
-      enabled: false
-        start: 0
-      updateStrategy: {}
+    updateStrategy: {}
     image:
       repository: atlassian/jira-software
-        pullPolicy: IfNotPresent
-        tag: ""
-      serviceAccount:
+      pullPolicy: IfNotPresent
+      tag: ""
+    serviceAccount:
       create: true
-        name:
-        imagePullSecrets: []
-        annotations: {}
-        eksIrsa:
-          roleArn:
+      name:
+      imagePullSecrets: []
+      annotations: {}
     database:
-      type:
-        url:
-        driver:
-        credentials:
-          secretName:
-            usernameSecretKey: username
-            passwordSecretKey: password
-        volumes:
+      type: 'postgres72'
+      url: 'jdbc:postgresql://postgres:5432/jira'
+      driver: 'org.postgresql.Driver'
+      credentials:
+        secretName: db-creds
+        usernameSecretKey: username
+        passwordSecretKey: password
+    volumes:
       localHome:
-          persistentVolumeClaim:
-              create: false
-                storageClassName:
-                resources:
+        persistentVolumeClaim:
+          create: false
+          storageClassName:
+          resources:
             requests:
               storage: 1Gi
-                  persistentVolumeClaimRetentionPolicy:
-              whenDeleted:
-                whenScaled:
-              customVolume: {}
-            mountPath: "/var/atlassian/application-data/jira"
-            subPath:
-          sharedHome:
-          persistentVolumeClaim:
-              create: false
-                accessModes:
+        customVolume: {
+          clamName: "jira-local-home"
+        }
+        mountPath: "/var/atlassian/application-data/jira"
+      sharedHome:
+        persistentVolumeClaim:
+          create: false
+          accessModes:
             - ReadWriteMany
-                  storageClassName:
-                resources:
+          storageClassName:
+          resources:
             requests:
               storage: 1Gi
-                  customVolume: {}
-            mountPath: "/var/atlassian/application-data/shared-home"
-            subPath:
-            nfsPermissionFixer:
-              enabled: true
-                mountPath: "/shared-home"
-                imageRepo: alpine
-                imageTag: latest
-                resources: {}
-                command:
-            additional: []
-      ingress:
-      create: false
-        openShiftRoute: false
-        routeHttpHeaders: {}
-        className: "nginx"
-        nginx: true
-        maxBodySize: 250m
-        proxyConnectTimeout: 60
-        proxyReadTimeout: 60
-        proxySendTimeout: 60
-        host:
-        path:
-        annotations: {}
-        https: true
-        tlsSecretName:
-        additionalPaths: []
-    jira:
-      useHelmReleaseNameAsContainerName: false
-        service:
-          port: 80
-            type: ClusterIP
-            nodePort:
-            sessionAffinity: None
-            sessionAffinityConfig:
-              clientIP:
-                  timeoutSeconds:
-                loadBalancerIP:
-            contextPath:
-            annotations: {}
-      securityContextEnabled: true
-        securityContext:
-          fsGroup: 2001
-            fsGroupChangePolicy: "OnRootMismatch"
-          containerSecurityContext: {}
-        setPermissions: true
-        ports:
-          http: 8080
-            ehcache: 40001
-            ehcacheobject: 40011
-          readinessProbe:
+        customVolume: {
+          claimName : "jira-shared-home"
+        }
+        mountPath: "/var/atlassian/application-data/shared-home"
+        nfsPermissionFixer:
           enabled: true
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 10
-            customProbe: {}
-          startupProbe:
-          enabled: false
-            initialDelaySeconds: 60
-            periodSeconds: 5
-            failureThreshold: 120
-          livenessProbe:
-          enabled: false
-            initialDelaySeconds: 60
-            periodSeconds: 5
-            timeoutSeconds: 1
-            failureThreshold: 12
-            customProbe: {}
-          accessLog:
-          mountPath: "/opt/atlassian/jira/logs"
-            localHomeSubPath: "log"
+          mountPath: "/shared-home"
+          imageRepo: alpine
+          imageTag: latest
+          resources:
+            requests:
+              cpu: "1m"
+              memory: "20Mi"
+            limits:
+              cpu: "1"
+              memory: "1G"
+    ingress:
+
+      # -- Set to 'true' if an Ingress Resource should be created. This depends on a
+      # pre-provisioned Ingress Controller being available.
+      #
+      create: false
+
+      # -- Set to true if you want to create an OpenShift Route instead of an Ingress
+      #
+      openShiftRoute: false
+
+      # -- routeHttpHeaders defines policy for HTTP headers. Applicable to OpenShift Routes only
+      #
+      routeHttpHeaders: {}
+
+      # -- The class name used by the ingress controller if it's being used.
+      #
+      # Please follow documentation of your ingress controller. If the cluster
+      # contains multiple ingress controllers, this setting allows you to control
+      # which of them is used for Atlassian application traffic.
+      #
+      className: "nginx"
+
+      # -- Set to 'true' if the Ingress Resource is to use the K8s 'ingress-nginx'
+      # controller.
+      # https://kubernetes.github.io/ingress-nginx/
+      #
+      # This will populate the Ingress Resource with annotations that are specific to
+      # the K8s ingress-nginx controller. Set to 'false' if a different controller is
+      # to be used, in which case the appropriate annotations for that controller must
+      # be specified below under 'ingress.annotations'.
+      #
+      nginx: true
+
+      # -- The max body size to allow. Requests exceeding this size will result
+      # in an HTTP 413 error being returned to the client.
+      #
+      maxBodySize: 250m
+
+      # -- Defines a timeout for establishing a connection with a proxied server. It should
+      # be noted that this timeout cannot usually exceed 75 seconds.
+      #
+      proxyConnectTimeout: 60
+
+      # -- Defines a timeout for reading a response from the proxied server. The timeout is
+      # set only between two successive read operations, not for the transmission of the
+      # whole response. If the proxied server does not transmit anything within this time,
+      # the connection is closed.
+      #
+      proxyReadTimeout: 60
+
+      # -- Sets a timeout for transmitting a request to the proxied server. The timeout is set
+      # only between two successive write operations, not for the transmission of the whole
+      # request. If the proxied server does not receive anything within this time, the
+      # connection is closed.
+      #
+      proxySendTimeout: 60
+
+      # -- The fully-qualified hostname (FQDN) of the Ingress Resource. Traffic coming in on
+      # this hostname will be routed by the Ingress Resource to the appropriate backend
+      # Service.
+      #
+      host:
+
+      # -- The base path for the Ingress Resource. For example '/jira'. Based on a
+      # 'ingress.host' value of 'company.k8s.com' this would result in a URL of
+      # 'company.k8s.com/jira'. Default value is 'jira.service.contextPath'
+      #
+      path:
+
+      # -- The custom annotations that should be applied to the Ingress Resource.
+      # If using an ingress-nginx controller be sure that the annotations you add
+      # here are compatible with those already defined in the 'ingess.yaml' template
+      #
+      annotations: {}
+
+      # -- Set to 'true' if browser communication with the application should be TLS
+      # (HTTPS) enforced.
+      #
+      https: true
+
+      # -- The name of the K8s Secret that contains the TLS private key and corresponding
+      # certificate. When utilised, TLS termination occurs at the ingress point where
+      # traffic to the Service, and it's Pods is in plaintext.
+      #
+      # Usage is optional and depends on your use case. The Ingress Controller itself
+      # can also be configured with a TLS secret for all Ingress Resources.
+      # https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets
+      # https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
+      #
+      tlsSecretName:
+
+      # -- Additional paths to be added to the Ingress resource to point to different backend services
+      #
+      additionalPaths: []
+        #- path: /static-content
+        #  pathType: Prefix
+        #  service: static-content-svc
+        #  portNumber: 80
+
+
+    # Jira configuration
+    #
+    jira:
+
+      # -- Whether the main container should acquire helm release name. The default, the container name is jira (Helm chart name)
+      #
+      useHelmReleaseNameAsContainerName: false
+
+      # K8s Service configuration
+      #
+      service:
+
+        # -- The port on which the Jira K8s Service will listen
+        #
+        port: 80
+
+        # -- The type of K8s service to use for Jira
+        #
+        type: ClusterIP
+
+        # --  Only applicable if service.type is NodePort. NodePort for Jira service
+        #
+        nodePort:
+
+        # -- Session affinity type. If you want to make sure that connections from a particular client
+        # are passed to the same pod each time, set sessionAffinity to ClientIP.
+        # See: https://kubernetes.io/docs/reference/networking/virtual-ips/#session-affinity
+        #
+        sessionAffinity: None
+
+        # -- Session affinity configuration
+        #
+        sessionAffinityConfig:
+
+          clientIP:
+
+            # -- Specifies the seconds of ClientIP type session sticky time.
+            # The value must be > 0 && <= 86400(for 1 day) if ServiceAffinity == "ClientIP". Default value is 10800 (for 3 hours).
+            #
+            timeoutSeconds:
+
+        # -- Use specific loadBalancerIP. Only applies to service type LoadBalancer.
+        #
+        loadBalancerIP:
+
+        # -- The Tomcat context path that Jira will use. The ATL_TOMCAT_CONTEXTPATH
+        # will be set automatically.
+        #
+        contextPath:
+
+        # -- Additional annotations to apply to the Service
+        #
+        annotations: {}
+
+      # Standard K8s field that holds pod-level security attributes and common container settings.
+      # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+      # Do not populate when deploying to OpenShift, unless anyuid policy is attached to a service account.
+      #
+
+      # -- Whether to apply security context to pod.
+      #
+      securityContextEnabled: true
+
+      securityContext:
+
+        # -- The GID used by the Jira docker image
+        # GID will default to 2001 if not supplied and securityContextEnabled is set to true.
+        # This is intended to ensure that the shared-home volume is group-writeable by the GID used by the Jira container.
+        # However, this doesn't appear to work for NFS volumes due to a K8s bug: https://github.com/kubernetes/examples/issues/260
+        #
+        fsGroup: 2001
+
+        # -- fsGroupChangePolicy defines behavior for changing ownership and permission of the volume before being exposed inside a Pod.
+        # This field only applies to volume types that support fsGroup controlled ownership and permissions.
+        # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#configure-volume-permission-and-ownership-change-policy-for-pods
+        #
+        fsGroupChangePolicy: "OnRootMismatch"
+
+      # -- Standard K8s field that holds security configurations that will be applied to a container.
+      # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+      #
+      containerSecurityContext: {}
+
+      # -- Boolean to define whether to set local home directory permissions on startup
+      # of Jira container. Set to 'false' to disable this behaviour.
+      #
+      setPermissions: true
+
+      # Port definitions
+      #
+      ports:
+
+        # -- The port on which the Jira container listens for HTTP traffic
+        #
+        http: 8080
+
+        # -- Ehcache port
+        #
+        ehcache: 40001
+
+        # -- Ehcache object port
+        #
+        ehcacheobject: 40011
+
+      # Confirm that Jira is available with a ReadinessProbe
+      # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-readiness-probes
+      #
+      readinessProbe:
+
+        # -- Whether to apply the readinessProbe check to pod.
+        #
+        enabled: true
+
+        # -- The initial delay (in seconds) for the Jira container readiness probe,
+        # after which the probe will start running.
+        #
+        initialDelaySeconds: 10
+
+        # -- How often (in seconds) the Jira container readiness probe will run
+        #
+        periodSeconds: 5
+
+        # -- Number of seconds after which the probe times out
+        #
+        timeoutSeconds: 1
+
+        # -- The number of consecutive failures of the Jira container readiness probe
+        # before the pod fails readiness checks.
+        #
+        failureThreshold: 10
+
+        # -- Custom readinessProbe to override the default /status httpGet
+        #
+        customProbe: {}
+    #      tcpSocket:
+    #        port: 8080
+    #      periodSeconds: 5
+    #      failureThreshold: 120
+
+      # Confirm that Jira is up and running with a StartupProbe
+      # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-startup-probes
+      #
+      startupProbe:
+
+        # -- Whether to apply the startupProbe check to pod.
+        #
+        enabled: false
+
+        # -- Time to wait before starting the first probe
+        #
+        initialDelaySeconds: 60
+
+        # -- How often (in seconds) the Jira container startup probe will run
+        #
+        periodSeconds: 5
+
+        # -- The number of consecutive failures of the Jira container startup probe
+        # before the pod fails startup checks.
+        #
+        failureThreshold: 120
+
+      # Ensure that the server responds with a LivenessProbe
+      # https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-a-tcp-liveness-probe
+      #
+      livenessProbe:
+
+        # -- Whether to apply the livenessProbe check to pod.
+        #
+        enabled: false
+
+        # -- Time to wait before starting the first probe
+        #
+        initialDelaySeconds: 60
+
+        # -- How often (in seconds) the Jira container liveness probe will run
+        #
+        periodSeconds: 5
+
+        # -- Number of seconds after which the probe times out
+        #
+        timeoutSeconds: 1
+
+        # -- The number of consecutive failures of the Jira container liveness probe
+        # before the pod fails liveness checks.
+        #
+        failureThreshold: 12
+
+        # -- Custom livenessProbe to override the default tcpSocket probe
+        #
+        customProbe: {}
+
+      # Jira log configuration
+      #
+      accessLog:
+
+        # -- The path within the Jira container where the local-home volume should be
+        # mounted in order to capture access logs.
+        #
+        mountPath: "/opt/atlassian/jira/logs"
+
+        # -- The subdirectory within the local-home volume where access logs should be
+        # stored.
+        #
+        localHomeSubPath: "log"
+
+      # Use AWS S3 to store avatars and attachments. From Jira 9.9 onwards.
+      #
+
+      s3Storage:
+
+        avatars:
+          # -- Bucket name to store avatars. If a bucket name and region (see below) are defined, Jira will automatically
+          # use AWS S3 to store avatars. Only bucket name is required, not the full arn.
+          #
+          bucketName:
+
+          # -- AWS region where the S3 bucket is located.
+          #
+          bucketRegion:
+
+          # -- Override the default AWS API endpoint with a custom one
+          #
+          endpointOverride:
+
+        attachments:
+          # -- Bucket name to store attachments. If a bucket name and region (see below) are defined, Jira will automatically
+          # use AWS S3 to store attachments. Only bucket name is required, not the full arn.
+          # If you provide the same bucket name for both avatars and attachments, they will be stored in the same bucket
+          #
+          bucketName:
+
+          # -- AWS region where the S3 bucket is located.
+          #
+          bucketRegion:
+
+          # -- Override the default AWS API endpoint with a custom one
+          #
+          endpointOverride:
+
+        backups:
+          # -- Bucket name to store backups. If a bucket name and region (see below) are defined, Jira will automatically
+          # use AWS S3 to store backups. Only bucket name is required, not the full arn.
+          # If you provide the same bucket name for both avatars and backups, they will be stored in the same bucket
+          #
+          bucketName:
+
+          # -- AWS region where the S3 bucket is located.
+          #
+          bucketRegion:
+
+          # -- Override the default AWS API endpoint with a custom one
+          #
+          endpointOverride:
+
+      session:
+
+        # -- User session timeout. Set to 30 minutes in web.xml
+        #
+        timeout:
+
+        # -- The maximum time a user can remain logged-in with 'Remember Me'. Defaults to 1209600; two weeks, in seconds
+        #
+        autologinCookieAge:
+
+      # Data Center clustering
+      #
+      clustering:
+
+        # -- Set to 'true' if Data Center clustering should be enabled
+        # This will automatically configure cluster peer discovery between cluster nodes.
+        #
+        enabled: false
+
+      shutdown:
+
+        # -- The termination grace period for pods during shutdown. This
+        # should be set to the internal grace period, plus a small buffer
+        # to allow the JVM to fully terminate.
+        #
+        terminationGracePeriodSeconds: 30
+
+        # -- By default pods will be stopped via a [preStop hook](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/),
+        # using a script supplied by the Docker image. If any other
+        # shutdown behaviour is needed it can be achieved by overriding
+        # this value. Note that the shutdown command needs to wait for the
+        # application shutdown completely before exiting; see [the default
+        # command](https://bitbucket.org/atlassian-docker/docker-atlassian-jira/src/master/shutdown-wait.sh)
+        # for details.
+        #
+        command: "/shutdown-wait.sh"
+
+      # -- PostStart is executed immediately after a container is created.
+      # However, there is no guarantee that the hook will execute before the container ENTRYPOINT.
+      # See: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
+      #
+      postStart:
+        command:
+
+      # Pod resource requests
+      #
+      resources:
+
+        # JVM Memory / Heap Size definitions. The values below are based on the
+        # defaults defined for the Jira docker container.
+        # https://bitbucket.org/atlassian-docker/docker-atlassian-jira/src/master/#markdown-header-memory-heap-size
+        #
+        jvm:
+
+          # -- The maximum amount of heap memory that will be used by the Jira JVM
+          #
+          maxHeap: "768m"
+
+          # -- The minimum amount of heap memory that will be used by the Jira JVM
+          #
+          minHeap: "384m"
+
+          # -- The memory reserved for the Jira JVM code cache
+          #
+          reservedCodeCache: "512m"
+
+        # Specifies the standard K8s resource requests and/or limits for the Jira
+        # container. It is important that if the memory resources are specified here,
+        # they must allow for the size of the Jira JVM. That means the maximum heap
+        # size, the reserved code cache size, plus other JVM overheads, must be
+        # accommodated. Allowing for (maxHeap+codeCache)*1.5 would be an example.
+        #
+        container:
+
+          requests:
+
+            # -- Initial CPU request by Jira pod
+            #
+            cpu: "2"
+
+            # -- Initial Memory request by Jira pod
+            #
+            memory: "2G"
+
+          # limits:
+          #   cpu: "2"
+          #   memory: "2G"
+
+      # -- The Docker entrypoint.py generates application configuration on
+      # first start; not all of these files are regenerated on subsequent starts.
+      # By default, dbconfig.xml is generated only once. Set `forceConfigUpdate` to true
+      # to change this behavior.
+      #
       forceConfigUpdate: false
+      # Specifies a list of additional arguments that can be passed to the Jira JVM, e.g.
+      # system properties.
+      #
       additionalJvmArgs: []
-        tomcatConfig:
-          generateByHelm: false
-            mgmtPort: "8005"
+
+      # -- By default Tomcat's server.xml is generated in the container entrypoint from a template
+      # shipped with an official Jira image. However, server.xml generation may fail if container
+      # is not run as root, which is a common case if Jira is deployed to OpenShift.
+      #
+      tomcatConfig:
+
+        # -- Mount server.xml as a ConfigMap. Override configuration elements if necessary
+        #
+        generateByHelm: false
+
+        mgmtPort: "8005"
         port: "8080"
         maxThreads: "100"
         minSpareThreads: "10"
@@ -163,118 +560,16 @@ spec:
         protocol: "HTTP/1.1"
         redirectPort: "8443"
         acceptCount: "100"
+        # secure is retrieved from ingress.https value
         secure:
+        # scheme is set depending on ingress.https value (http if false, https if true)
         scheme:
+        # proxyName is retrieved from ingress.host value
         proxyName:
+        # proxyPort is set depending on ingress.https value (80 if http, 443 if https)
         proxyPort:
         maxHttpHeaderSize: "8192"
         stuckThreadDetectionValveThreshold: "120"
         accessLogMaxDays: "-1"
         accessLogPattern: "%a %{jira.request.id}r %{jira.request.username}r %t &quot;%m %U%q %H&quot; %s %b %D &quot;%{Referer}i&quot; &quot;%{User-Agent}i&quot; &quot;%{jira.request.assession.id}r&quot;"
         requestAttributesEnabled: "false"
-            customServerXml: |
-          seraphConfig:
-          generateByHelm: false
-            autoLoginCookieAge: "1209600"
-          additionalLibraries: []
-        additionalBundledPlugins: []
-        additionalVolumeMounts: []
-        additionalEnvironmentVariables: []
-        additionalAnnotations: {}
-        additionalPorts: []
-        additionalVolumeClaimTemplates: []
-        topologySpreadConstraints: []
-        additionalCertificates:
-        secretName:
-        secretList: []
-            customCmd:
-            initContainer:
-              resources: {}
-          securityContext: {}
-            tunnel:
-        additionalConnector:
-          port:
-          connectionTimeout: "20000"
-          maxThreads: "50"
-          minSpareThreads: "10"
-          enableLookups: "false"
-          acceptCount: "10"
-          URIEncoding: "UTF-8"
-          secure: false
-          monitoring:
-      exposeJmxMetrics: false
-        jmxExporterInitContainer:
-          jmxJarLocation:
-            runAsRoot: true
-            customSecurityContext: {}
-            resources: {}
-          jmxServiceAnnotations: {}
-        fetchJmxExporterJar: true
-        jmxExporterImageRepo: bitnami/jmx-exporter
-        jmxExporterImageTag: 0.18.0
-        jmxExporterPort: 9999
-        jmxExporterPortType: ClusterIP
-        jmxExporterCustomJarLocation:
-        jmxExporterCustomConfig: {}
-        serviceMonitor:
-          create: false
-            prometheusLabelSelector: {}
-            scrapeIntervalSeconds: 30
-          grafana:
-          createDashboards: false
-            dashboardLabels: {}
-            dashboardAnnotations: {}
-        fluentd:
-      enabled: false
-        imageRepo: fluent/fluentd-kubernetes-daemonset
-        imageTag: v1.11.5-debian-elasticsearch7-1.2
-        resources: {}
-        command:
-        customConfigFile: false
-        fluentdCustomConfig: {}
-        httpPort: 9880
-        elasticsearch:
-          enabled: true
-            hostname: elasticsearch
-            indexNamePrefix: jira
-          extraVolumes: []
-      
-    podAnnotations: {}
-    podLabels: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
-    schedulerName:
-    priorityClassName:
-    hostNamespaces: {}
-    additionalContainers: []
-    additionalInitContainers: []
-    additionalLabels: {}
-    additionalFiles: []
-    additionalHosts: []
-    podDisruptionBudget:
-      enabled: false
-      labels: {}
-      annotations: {}
-      minAvailable:
-      maxUnavailable:
-      additionalConfigMaps: []
-    atlassianAnalyticsAndSupport:
-      analytics:
-          enabled: true
-          helmValues:
-          enabled: true
-        testPods:
-      resources: {}
-      labels: {}
-      annotations: {}
-      nodeSelector: {}
-      tolerations: []
-      affinity: {}
-      schedulerName:
-      image:
-        permissionsTestContainer: debian:stable-slim
-        statusTestContainer: alpine:latest
-        openshift:
-      runWithRestrictedSCC: false
-      
