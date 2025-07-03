@@ -34,3 +34,5 @@ spec:
     hostpathRequiresPrivileged: true
     crds:
       enabled: true
+    storageClass:
+      enabled: true
