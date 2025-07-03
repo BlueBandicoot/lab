@@ -15,5 +15,5 @@ spec:
       version: v1.17.5
   interval: 1m0s
   values:
-  cephClusterSpec:
-    allowMultiplePerNode: true
+    cephClusterSpec:
+      allowMultiplePerNode: true
