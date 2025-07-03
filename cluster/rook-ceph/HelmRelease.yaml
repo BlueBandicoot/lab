@@ -5,6 +5,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  interval: 10m
+  timeout: 5m
   chart:
     spec:
       chart: rook-ceph
