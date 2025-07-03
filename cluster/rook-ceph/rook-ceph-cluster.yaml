@@ -12,5 +12,5 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: rook-ceph
-      version: v1.17.
+      version: v1.17.5
   interval: 1m0s
